@@ -11,27 +11,26 @@ module.exports = async (req, res) => {
   const token = params.get('g-recaptcha-response');
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
-  if (!token) {
-    return res.status(400).send('Captcha Token Missing');
-  }
+  if (!token) return res.status(400).send('Captcha Token Missing');
 
   try {
-    // Anfrage an Google
+    // Bei v3 ist ein URL-encoded POST-Body zwingend
     const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`
+      body: new URLSearchParams({ secret, response: token }).toString()
     });
     
     const data = await response.json();
 
+    // v3 Prüfung: success muss true sein
     if (data.success) {
       res.setHeader('Set-Cookie', `auth_token=verified; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
       res.writeHead(302, { Location: '/map' });
       res.end();
     } else {
       res.status(401).json({
-        error: 'Verification Failed',
+        error: 'v3 Verification Failed',
         google_response: data
       });
     }
