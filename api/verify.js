@@ -1,35 +1,42 @@
-const { verify } = require('crypto');
-
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
-  // Vercel parst POST-Bodys von HTML-Formularen automatisch in req.body
-  const token = req.body['g-recaptcha-response'];
-  const secret = process.env.RECAPTCHA_SECRET_KEY;
+  // body-parser ist bei Vercel Node Functions für Form-POSTs nicht immer aktiv
+  // Wir lesen den Stream manuell aus
+  let body = '';
+  req.on('data', chunk => { body += chunk.toString(); });
+  
+  req.on('end', async () => {
+    const params = new URLSearchParams(body);
+    const token = params.get('g-recaptcha-response');
+    const secret = process.env.RECAPTCHA_SECRET_KEY;
 
-  if (!token) {
-    return res.status(400).send('Captcha Token Missing');
-  }
-
-  try {
-    // reCAPTCHA v3 Verifizierung (Backend-Check)
-    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secret}&response=${token}`;
-    
-    const response = await fetch(verifyUrl, { method: 'POST' });
-    const data = await response.json();
-
-    if (data.success && data.score >= 0.5) {
-      // Erfolgreich verifiziert: Setze Auth-Cookie
-      res.setHeader('Set-Cookie', `auth_token=verified; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
-      res.writeHead(302, { Location: '/map' });
-      res.end();
-    } else {
-      // Fehler-Details ausgeben
-      const errorMsg = data['error-codes'] ? data['error-codes'].join(', ') : 'Low Score (' + data.score + ')';
-      res.status(401).send(`Verification Failed: ${errorMsg}`);
+    if (!token) {
+      return res.status(400).send('Captcha Token Missing in Body');
     }
-  } catch (err) {
-    console.error('Verify Error:', err);
-    res.status(500).send('Server Error during Verification');
-  }
+
+    try {
+      // WICHTIG: Google erwartet die Parameter im Body eines POST-Requests, nicht in der URL
+      const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `secret=${secret}&response=${token}`
+      });
+      
+      const data = await response.json();
+
+      if (data.success && data.score >= 0.3) {
+        res.setHeader('Set-Cookie', `auth_token=verified; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
+        res.writeHead(302, { Location: '/map' });
+        res.end();
+      } else {
+        res.status(401).json({
+          error: 'Verification Failed',
+          google_response: data
+        });
+      }
+    } catch (err) {
+      res.status(500).send('Server Error');
+    }
+  });
 };
