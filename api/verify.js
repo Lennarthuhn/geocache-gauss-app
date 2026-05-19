@@ -1,35 +1,26 @@
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
-  let token = '';
+  // Body auslesen
   const buffers = [];
   for await (const chunk of req) {
     buffers.push(chunk);
   }
   const body = Buffer.concat(buffers).toString();
-  
-  // Wir parsen den Body manuell
-  if (req.headers['content-type']?.includes('application/json')) {
-    try {
-      token = JSON.parse(body)['g-recaptcha-response'];
-    } catch(e) {}
-  } else {
-    const params = new URLSearchParams(body);
-    token = params.get('g-recaptcha-response');
-  }
-
+  const params = new URLSearchParams(body);
+  const token = params.get('g-recaptcha-response');
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
   if (!token) {
-    return res.status(400).send('Captcha Token Missing in Body');
+    return res.status(400).send('Captcha Token Missing');
   }
 
   try {
-    // Reiner URL-basiert Check als Fallback (manche Google-Instanzen bevorzugen das bei v3)
-    const googleUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`;
-
-    const response = await fetch(googleUrl, {
-      method: 'POST'
+    // Anfrage an Google
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`
     });
     
     const data = await response.json();
@@ -41,12 +32,7 @@ module.exports = async (req, res) => {
     } else {
       res.status(401).json({
         error: 'Verification Failed',
-        google_response: data,
-        debug: {
-          secret_length: secret?.length,
-          token_length: token?.length,
-          content_type: req.headers['content-type']
-        }
+        google_response: data
       });
     }
   } catch (err) {
