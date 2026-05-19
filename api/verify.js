@@ -1,17 +1,19 @@
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
-  // Vercel hat den Body oft schon geparst, wenn der Content-Type stimmt.
-  // Wir unterstützen beide Wege (geparst oder Stream).
-  let token = req.body?.['g-recaptcha-response'];
+  let token = '';
+  const buffers = [];
+  for await (const chunk of req) {
+    buffers.push(chunk);
+  }
+  const body = Buffer.concat(buffers).toString();
   
-  if (!token) {
-    // Falls nicht geparst, manuell aus dem Stream lesen
-    const buffers = [];
-    for await (const chunk of req) {
-      buffers.push(chunk);
-    }
-    const body = Buffer.concat(buffers).toString();
+  // Wir parsen den Body manuell
+  if (req.headers['content-type']?.includes('application/json')) {
+    try {
+      token = JSON.parse(body)['g-recaptcha-response'];
+    } catch(e) {}
+  } else {
     const params = new URLSearchParams(body);
     token = params.get('g-recaptcha-response');
   }
@@ -19,19 +21,15 @@ module.exports = async (req, res) => {
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
   if (!token) {
-    return res.status(400).send('Captcha Token Missing');
+    return res.status(400).send('Captcha Token Missing in Body');
   }
 
   try {
-    // Wir senden die Daten als URLSearchParams Objekt, was fetch automatisch 
-    // als korrektes application/x-www-form-urlencoded formatiert.
-    const googleParams = new URLSearchParams();
-    googleParams.append('secret', secret);
-    googleParams.append('response', token);
+    // Reiner URL-basiert Check als Fallback (manche Google-Instanzen bevorzugen das bei v3)
+    const googleUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`;
 
-    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-      method: 'POST',
-      body: googleParams
+    const response = await fetch(googleUrl, {
+      method: 'POST'
     });
     
     const data = await response.json();
@@ -44,7 +42,11 @@ module.exports = async (req, res) => {
       res.status(401).json({
         error: 'Verification Failed',
         google_response: data,
-        sent_token_preview: token.substring(0, 10) + '...'
+        debug: {
+          secret_length: secret?.length,
+          token_length: token?.length,
+          content_type: req.headers['content-type']
+        }
       });
     }
   } catch (err) {
