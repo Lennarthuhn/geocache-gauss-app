@@ -7,11 +7,6 @@ module.exports = async (req, res) => {
   const params = new URLSearchParams(body);
   const token = params.get('g-recaptcha-response');
   
-  // WICHTIG: Fuer Enterprise nutzen wir hier den API Key oder Service Account.
-  // Da Lennart die "invalid-input-response" bekommt, ist die einfachste Loesung fuer Geocaching 
-  // oft die klassische v3 API, da Enterprise komplexere Auth-Header benoetigt.
-  // Wir probieren hier noch einmal den sauberen URL-Parameter Weg.
-  
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
   if (!token) return res.status(400).send('Captcha Token Missing');
