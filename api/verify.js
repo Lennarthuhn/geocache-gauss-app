@@ -1,18 +1,22 @@
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
+  // Body auslesen
   const buffers = [];
-  for await (const chunk of req) { buffers.push(chunk); }
+  for await (const chunk of req) {
+    buffers.push(chunk);
+  }
   const body = Buffer.concat(buffers).toString();
-  
   const params = new URLSearchParams(body);
   const token = params.get('g-recaptcha-response');
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
-  if (!token) return res.status(400).send('Captcha Token Missing');
+  if (!token) {
+    return res.status(400).send('Captcha Token Missing');
+  }
 
   try {
-    // Klassische v2 Verifizierung
+    // Klassischer siteverify Request
     const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -27,8 +31,9 @@ module.exports = async (req, res) => {
       res.end();
     } else {
       res.status(401).json({
-        error: 'v2 Verification Failed',
-        google_response: data
+        error: 'Verification Failed',
+        google_response: data,
+        note: 'Stelle sicher, dass in der Google Console die Domain vercel.app erlaubt ist.'
       });
     }
   } catch (err) {
