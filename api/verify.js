@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
         event: {
           token: token,
           siteKey: siteKey,
-          expectedAction: "LOGIN"
+          expectedAction: "login"
         }
       })
     });
@@ -37,7 +37,8 @@ module.exports = async (req, res) => {
     } else {
       res.status(401).json({
         error: 'Enterprise Verification Failed',
-        details: data
+        details: data,
+        note: 'Stelle sicher, dass RECAPTCHA_SECRET_KEY in Vercel ein gueltiger Google Cloud API Key ist.'
       });
     }
   } catch (err) {

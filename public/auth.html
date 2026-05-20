@@ -22,14 +22,14 @@
             <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all shadow-md">
                 Zugriff freischalten
             </button>
-            <p class="text-[10px] text-slate-400 text-center">Protected by reCAPTCHA Enterprise</p>
+            <p class="text-[10px] text-slate-400 text-center">Geschützt durch reCAPTCHA Enterprise</p>
         </form>
     </div>
     <script>
         document.getElementById('captcha-form').addEventListener('submit', function(e) {
             e.preventDefault();
             grecaptcha.enterprise.ready(function() {
-                grecaptcha.enterprise.execute('6LfXr_IsAAAAAMcDUJxt2EtQvVbsLjT8UCFthNUR', {action: 'LOGIN'}).then(function(token) {
+                grecaptcha.enterprise.execute('6LfXr_IsAAAAAMcDUJxt2EtQvVbsLjT8UCFthNUR', {action: 'login'}).then(function(token) {
                     document.getElementById('g-recaptcha-response').value = token;
                     document.getElementById('captcha-form').submit();
                 });
