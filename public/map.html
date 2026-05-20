@@ -128,10 +128,10 @@ function update() {
     document.getElementById('sse-display').innerText = userSSE.toFixed(4);
     document.getElementById('accuracy-display').innerText = acc.toFixed(1) + '%';
     document.getElementById('accuracy-bar').style.width = acc + '%';
-    document.getElementById('equation-display').innerText = `y = ${userSlope.toFixed(4)} · x ${userIntercept>=0?'+':'-'} ${Math.abs(userIntercept).toFixed(4)}`;
+    document.getElementById('equation-display').innerText = `Nord = ${userSlope.toFixed(4)} · Ost ${userIntercept>=0?'+':'-'} ${Math.abs(userIntercept).toFixed(4)}`;
     
     const predY = userSlope * 32.841 + userIntercept;
-    document.getElementById('predictor-display').innerText = `y = ${predY.toFixed(3)}`;
+    document.getElementById('predictor-display').innerText = `Nord = ${predY.toFixed(3)}`;
     document.getElementById('coord-display').innerText = `N 47° ${predY < 10 ? '0' : ''}${predY.toFixed(3)}'`;
 
     lineGroup.clearLayers();
