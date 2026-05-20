@@ -7,38 +7,32 @@ module.exports = async (req, res) => {
   const params = new URLSearchParams(body);
   const token = params.get('g-recaptcha-response');
   
-  const apiKey = process.env.RECAPTCHA_SECRET_KEY;
-  const projectID = "project-628827b8-1611-446e-9fa";
-  const siteKey = "6LfXr_IsAAAAAMcDUJxt2EtQvVbsLjT8UCFthNUR";
+  const secret = process.env.RECAPTCHA_SECRET_KEY;
 
   if (!token) return res.status(400).send('Captcha Token Missing');
 
   try {
-    const enterpriseUrl = `https://recaptchaenterprise.googleapis.com/v1/projects/${projectID}/assessments?key=${apiKey}`;
-
-    const response = await fetch(enterpriseUrl, {
+    // Revert to Standard reCAPTCHA v3 / v2 API because the provided key format 
+    // (6LfXr_Is...) is a classic Secret Key, not a Google Cloud API Key.
+    const googleUrl = `https://www.google.com/recaptcha/api/siteverify`;
+    
+    const response = await fetch(googleUrl, { 
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        event: {
-          token: token,
-          siteKey: siteKey,
-          expectedAction: "login"
-        }
-      })
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret, response: token }).toString()
     });
     
     const data = await response.json();
 
-    if (data.tokenProperties && data.tokenProperties.valid === true) {
+    if (data.success) {
       res.setHeader('Set-Cookie', `auth_token=verified; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
       res.writeHead(302, { Location: '/map' });
       res.end();
     } else {
       res.status(401).json({
-        error: 'Enterprise Verification Failed',
-        details: data,
-        note: 'Stelle sicher, dass RECAPTCHA_SECRET_KEY in Vercel ein gueltiger Google Cloud API Key ist.'
+        error: 'Verification Failed',
+        google_response: data,
+        note: 'The key looks like a classic reCAPTCHA Secret Key. Ensuring standard v3 API is used.'
       });
     }
   } catch (err) {
