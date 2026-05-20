@@ -43,13 +43,21 @@ module.exports = async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // Alle sensiblen Daten kommen jetzt aus ENVs oder sind serverseitig geschützt
+  const { solve } = req.query;
+
+  // Falls das Rätsel noch nicht gelöst wurde, sende nur die Caches
+  if (solve !== 'true') {
+    return res.json({
+      caches: caches,
+      sheetLink: process.env.SHEET_LINK || "https://docs.google.com/spreadsheets/d/1N9aZ6a67jj-Cvow98YrPrO0_RQ4aWmlWVWn9K3-eYfU/edit?usp=sharing"
+    });
+  }
+
+  // Erst wenn solve=true gesendet wird (Rätsel gelöst), sende die finalen Daten
   res.json({
-    caches: caches, // Die 36 Caches sind nun auch in der API geschützt
     targetX: 32.841,
     successEquation: process.env.SUCCESS_EQUATION || "y = 1.0739 · x - 25.4700",
     finalLat: process.env.FINAL_LAT || "N 47° 09.798'",
-    finalLon: process.env.FINAL_LON || "E 007° 32.841'",
-    sheetLink: process.env.SHEET_LINK || "https://docs.google.com/spreadsheets/d/1N9aZ6a67jj-Cvow98YrPrO0_RQ4aWmlWVWn9K3-eYfU/edit?usp=sharing"
+    finalLon: process.env.FINAL_LON || "E 007° 32.841'"
   });
 };

@@ -72,7 +72,7 @@
 </main>
 
 <script>
-let caches = [], secureData = {}, map, markerGroup, lineGroup, unlocked = false;
+let caches = [], map, markerGroup, lineGroup, unlocked = false;
 let userSlope = 0.8, userIntercept = -17.0, minSSE = 0, trueSlope = 0, trueIntercept = 0;
 
 async function loadData() {
@@ -80,9 +80,8 @@ async function loadData() {
     if (res.ok) {
         const data = await res.json();
         caches = data.caches;
-        secureData = data;
         document.getElementById('captcha-overlay').classList.add('hidden');
-        document.getElementById('sheet-link').href = secureData.sheetLink;
+        document.getElementById('sheet-link').href = data.sheetLink;
         initMap();
     }
 }
@@ -106,6 +105,22 @@ function initMap() {
     update();
 }
 
+async function unlockFinalData() {
+    const res = await fetch('/api/data?solve=true');
+    if (res.ok) {
+        const finalData = await res.json();
+        unlocked = true;
+        document.getElementById('success-card').classList.remove('hidden');
+        const fX=32.841, fY=trueSlope*fX+trueIntercept;
+        const fLat=minToLat(fY), fLon=minToLon(fX);
+        L.marker([fLat, fLon], {icon: L.divIcon({className:'bg-rose-500 w-6 h-6 rounded-full border-2 border-white animate-bounce'})}).addTo(map)
+         .bindPopup(`<strong>Final</strong><br>${finalData.finalLat}<br>${finalData.finalLon}`).openPopup();
+        map.flyTo([fLat, fLon], 14);
+        document.getElementById('final-equation').innerText = finalData.successEquation;
+        document.getElementById('final-coords').innerText = `${finalData.finalLat} / ${finalData.finalLon}`;
+    }
+}
+
 function update() {
     let userSSE = 0;
     caches.forEach(c => userSSE += Math.pow(c.y - (userSlope*c.x + userIntercept), 2));
@@ -114,10 +129,11 @@ function update() {
     document.getElementById('accuracy-display').innerText = acc.toFixed(1) + '%';
     document.getElementById('accuracy-bar').style.width = acc + '%';
     document.getElementById('equation-display').innerText = `y = ${userSlope.toFixed(4)} · x ${userIntercept>=0?'+':'-'} ${Math.abs(userIntercept).toFixed(4)}`;
-    const pY = userSlope * 32.841 + userIntercept;
-    document.getElementById('predictor-display').innerText = `y = ${pY.toFixed(3)}`;
-    document.getElementById('coord-display').innerText = `N 47° ${pY < 10 ? '0' : ''}${pY.toFixed(3)}'`;
     
+    const predY = userSlope * 32.841 + userIntercept;
+    document.getElementById('predictor-display').innerText = `y = ${predY.toFixed(3)}`;
+    document.getElementById('coord-display').innerText = `N 47° ${predY < 10 ? '0' : ''}${predY.toFixed(3)}'`;
+
     lineGroup.clearLayers();
     L.polyline([[minToLat(userSlope*30.5+userIntercept), minToLon(30.5)], [minToLat(userSlope*33.5+userIntercept), minToLon(33.5)]], {color:'#ef4444', weight:3}).addTo(lineGroup);
     caches.forEach(c => {
@@ -126,25 +142,7 @@ function update() {
         L.polyline([[c.lat, c.lon], [minToLat(py), c.lon]], {color:`hsl(${Math.max(0, Math.min(120, 120-(err*150)))},80%,50%)`, weight:1.5, dashArray:'4,4'}).addTo(lineGroup);
     });
 
-    if (acc >= 99.8 && !unlocked) {
-        unlocked = true;
-        document.getElementById('success-card').classList.remove('hidden');
-        const fX=32.841, fY=trueSlope*fX+trueIntercept;
-        L.marker([minToLat(fY), minToLon(fX)], {icon: L.divIcon({className:'bg-rose-500 w-6 h-6 rounded-full border-2 border-white animate-bounce'})}).addTo(map).bindPopup('Final').openPopup();
-        map.flyTo([minToLat(fY), minToLon(fX)], 14);
-        document.getElementById('final-equation').innerText = secureData.successEquation;
-        document.getElementById('final-coords').innerText = `${secureData.finalLat} / ${secureData.finalLon}`;
-    }
-}
-
-function adjustValue(p, v) {
-    if (unlocked) return;
-    if (p==='m') userSlope+=v; else userIntercept+=v;
-    document.getElementById('m-val').innerText = userSlope.toFixed(4);
-    document.getElementById('c-val').innerText = userIntercept.toFixed(4);
-    document.getElementById('slider-m').value = userSlope;
-    document.getElementById('slider-c').value = userIntercept;
-    update();
+    if (acc >= 99.8 && !unlocked) unlockFinalData();
 }
 
 document.getElementById('slider-m').oninput = e => { userSlope = parseFloat(e.target.value); document.getElementById('m-val').innerText = userSlope.toFixed(4); update(); };
