@@ -10,7 +10,11 @@ module.exports = async (req, res) => {
   const token = params.get('g-recaptcha-response');
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
-  if (!token) return res.status(400).send('Captcha Token Missing');
+  if (!token) {
+    // Statt einer Fehlermeldung leiten wir mit einem Fehler-Parameter zurück
+    res.writeHead(302, { Location: '/?error=missing_captcha' });
+    return res.end();
+  }
 
   try {
     const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
@@ -23,14 +27,15 @@ module.exports = async (req, res) => {
 
     if (data.success) {
       res.setHeader('Set-Cookie', `auth_token=verified; Path=/; HttpOnly; SameSite=Strict; Max-Age=3600`);
-      // Wir leiten nicht mehr auf /map weiter, sondern zurück auf die Root, 
-      // wo das JS nun die Karte freischaltet.
       res.writeHead(302, { Location: '/' });
       res.end();
     } else {
-      res.status(401).json({ error: 'Verification Failed', google_response: data });
+      // Auch bei fehlgeschlagener Verifizierung zurück zur Startseite mit Error
+      res.writeHead(302, { Location: '/?error=invalid_captcha' });
+      res.end();
     }
   } catch (err) {
-    res.status(500).send('Server Error: ' + err.message);
+    res.writeHead(302, { Location: '/?error=server_error' });
+    res.end();
   }
 };
