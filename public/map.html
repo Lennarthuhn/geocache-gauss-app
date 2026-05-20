@@ -40,14 +40,22 @@
         <div class="bg-slate-900 rounded-xl p-4 text-center">
             <div id="equation-display" class="text-emerald-400 font-mono text-lg font-bold">Lade Daten...</div>
         </div>
-        <div class="space-y-4">
+        <div class="space-y-6">
             <div class="space-y-2">
-                <div class="flex justify-between items-center"><label class="text-xs font-bold text-slate-500">Steigung (m)</label><span id="m-val" class="font-mono text-emerald-700 font-bold">1.0000</span></div>
-                <input id="slider-m" type="range" min="0.5" max="1.5" step="0.0001" value="1.0" class="w-full h-1.5 accent-emerald-500">
+                <div class="flex justify-between items-center"><label class="text-xs font-bold text-slate-500 uppercase">Steigung (m)</label><span id="m-val" class="font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200 text-sm">1.0000</span></div>
+                <div class="flex items-center gap-2">
+                    <button onclick="adjustValue('m', -0.001)" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition-colors shadow-sm font-bold">-</button>
+                    <input id="slider-m" type="range" min="0.5" max="1.5" step="0.0001" value="1.0" class="flex-1 h-1.5 accent-emerald-500">
+                    <button onclick="adjustValue('m', 0.001)" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition-colors shadow-sm font-bold">+</button>
+                </div>
             </div>
             <div class="space-y-2">
-                <div class="flex justify-between items-center"><label class="text-xs font-bold text-slate-500">Achsenabschnitt (c')</label><span id="c-val" class="font-mono text-emerald-700 font-bold">-20.0000</span></div>
-                <input id="slider-c" type="range" min="-32" max="-20" step="0.001" value="-20.0" class="w-full h-1.5 accent-emerald-500">
+                <div class="flex justify-between items-center"><label class="text-xs font-bold text-slate-500 uppercase">Achsenabschnitt (c')</label><span id="c-val" class="font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-1 rounded border border-emerald-200 text-sm">-20.0000</span></div>
+                <div class="flex items-center gap-2">
+                    <button onclick="adjustValue('c', -0.01)" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition-colors shadow-sm font-bold">-</button>
+                    <input id="slider-c" type="range" min="-32" max="-20" step="0.001" value="-20.0" class="flex-1 h-1.5 accent-emerald-500">
+                    <button onclick="adjustValue('c', 0.01)" class="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center justify-center text-slate-600 transition-colors shadow-sm font-bold">+</button>
+                </div>
             </div>
         </div>
         <div class="bg-white border rounded-2xl p-4 space-y-4 shadow-sm">
@@ -133,11 +141,8 @@ async function unlockFinalData() {
         unlocked = true;
         document.getElementById('success-card').classList.remove('hidden');
         document.getElementById('final-equation').innerText = finalData.successEquation;
-        
-        // Extrahiere nur den reinen Zahlenwert aus der E 007° 32.841' ENV für die Rechnung
         const rawLon = finalData.finalLon.match(/(\d+\.\d+)/)?.[0] || finalData.finalLon;
         document.getElementById('final-coords').innerText = rawLon;
-        
         const fX=32.841, fY=trueSlope*fX+trueIntercept;
         L.marker([minToLat(fY), minToLon(fX)], {icon: L.divIcon({className:'bg-rose-500 w-6 h-6 rounded-full border-2 border-white animate-pulse'})}).addTo(map);
         map.flyTo([minToLat(fY), minToLon(fX)], 14);
@@ -158,6 +163,11 @@ function update() {
     document.getElementById('predictor-display').innerText = `Nord = ${pY.toFixed(3)}`;
     document.getElementById('coord-display').innerText = `N 47° ${pY < 10 ? '0' : ''}${pY.toFixed(3)}'`;
 
+    document.getElementById('m-val').innerText = userSlope.toFixed(4);
+    document.getElementById('c-val').innerText = userIntercept.toFixed(4);
+    document.getElementById('slider-m').value = userSlope;
+    document.getElementById('slider-c').value = userIntercept;
+
     lineGroup.clearLayers();
     L.polyline([[minToLat(userSlope*30.5+userIntercept), minToLon(30.5)], [minToLat(userSlope*33.5+userIntercept), minToLon(33.5)]], {color:'#ef4444', weight:3}).addTo(lineGroup);
     caches.forEach(c => {
@@ -169,8 +179,18 @@ function update() {
     if (acc >= 99.8 && !unlocked) unlockFinalData();
 }
 
-document.getElementById('slider-m').oninput = e => { userSlope = parseFloat(e.target.value); document.getElementById('m-val').innerText = userSlope.toFixed(4); update(); };
-document.getElementById('slider-c').oninput = e => { userIntercept = parseFloat(e.target.value); document.getElementById('c-val').innerText = userIntercept.toFixed(4); update(); };
+function adjustValue(p, v) {
+    if (unlocked) return;
+    if (p==='m') {
+        userSlope = Math.min(1.5, Math.max(0.5, userSlope + v));
+    } else {
+        userIntercept = Math.min(-20.0, Math.max(-32.0, userIntercept + v));
+    }
+    update();
+}
+
+document.getElementById('slider-m').oninput = e => { userSlope = parseFloat(e.target.value); update(); };
+document.getElementById('slider-c').oninput = e => { userIntercept = parseFloat(e.target.value); update(); };
 
 loadData();
 </script> </body> </html>
