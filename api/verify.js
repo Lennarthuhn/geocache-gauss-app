@@ -1,29 +1,24 @@
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
-  // Body-Inhalt sammeln
   const buffers = [];
   for await (const chunk of req) { buffers.push(chunk); }
   const body = Buffer.concat(buffers).toString();
-  
-  // Token extrahieren
   const params = new URLSearchParams(body);
   const token = params.get('g-recaptcha-response');
+  
+  // WICHTIG: Fuer Enterprise nutzen wir hier den API Key oder Service Account.
+  // Da Lennart die "invalid-input-response" bekommt, ist die einfachste Loesung fuer Geocaching 
+  // oft die klassische v3 API, da Enterprise komplexere Auth-Header benoetigt.
+  // Wir probieren hier noch einmal den sauberen URL-Parameter Weg.
+  
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
   if (!token) return res.status(400).send('Captcha Token Missing');
 
   try {
-    // Laut Dokumentation: POST an siteverify mit Parametern als x-www-form-urlencoded
-    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      // Wir senden die Daten im Body, wie Google es verlangt
-      body: `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`
-    });
-    
+    const googleUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`;
+    const response = await fetch(googleUrl, { method: 'POST' });
     const data = await response.json();
 
     if (data.success) {
@@ -32,12 +27,9 @@ module.exports = async (req, res) => {
       res.end();
     } else {
       res.status(401).json({
-        error: 'v3 Verification Failed',
+        error: 'Enterprise Verification Failed',
         google_response: data,
-        debug: {
-          token_length: token.length,
-          secret_length: secret?.length
-        }
+        tip: 'Stelle sicher, dass in der Cloud Console fuer den Key "Legacy-Unterstuetzung" aktiv ist oder nutze reCAPTCHA v3 (nicht Enterprise).'
       });
     }
   } catch (err) {
