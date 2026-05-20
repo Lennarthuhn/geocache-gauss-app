@@ -6,14 +6,18 @@ module.exports = async (req, res) => {
   const body = Buffer.concat(buffers).toString();
   const params = new URLSearchParams(body);
   const token = params.get('g-recaptcha-response');
-  
   const secret = process.env.RECAPTCHA_SECRET_KEY;
 
-  if (!token) return res.status(400).send('Captcha Token Missing');
+  if (!token) return res.status(400).send('Token missing');
 
   try {
-    const googleUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`;
-    const response = await fetch(googleUrl, { method: 'POST' });
+    // Einfachster POST Request an Google
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${secret}&response=${token}`
+    });
+    
     const data = await response.json();
 
     if (data.success) {
@@ -21,13 +25,9 @@ module.exports = async (req, res) => {
       res.writeHead(302, { Location: '/map' });
       res.end();
     } else {
-      res.status(401).json({
-        error: 'Enterprise Verification Failed',
-        google_response: data,
-        tip: 'Stelle sicher, dass in der Cloud Console fuer den Key "Legacy-Unterstuetzung" aktiv ist oder nutze reCAPTCHA v3 (nicht Enterprise).'
-      });
+      res.status(401).json({ error: 'Auth failed', details: data });
     }
   } catch (err) {
-    res.status(500).send('Server Error: ' + err.message);
+    res.status(500).send('Error');
   }
 };

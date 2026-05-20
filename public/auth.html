@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gaußsche Ausgleichsgerade – Verifizierung</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- reCAPTCHA Enterprise Script -->
-    <script src="https://www.google.com/recaptcha/enterprise.js?render=6LfXr_IsAAAAAMcDUJxt2EtQvVbsLjT8UCFthNUR"></script>
+    <script src="https://www.google.com/recaptcha/api.js?render=6LfXr_IsAAAAAMcDUJxt2EtQvVbsLjT8UCFthNUR"></script>
 </head>
 <body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
     <div class="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full border border-slate-200">
@@ -14,29 +13,28 @@
             <div class="bg-emerald-600 w-16 h-16 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg">
                 <i class="fa-solid fa-shield-halved text-2xl"></i>
             </div>
-            <h1 class="text-2xl font-bold text-slate-900">Verifizierung erforderlich</h1>
-            <p class="text-slate-500 mt-2">Bitte bestätige deine Identität (Enterprise).</p>
+            <h1 class="text-2xl font-bold text-slate-900">Verifizierung</h1>
+            <p class="text-slate-500 mt-2">Bitte bestätige deine Identität.</p>
         </div>
         
         <form id="captcha-form" action="/api/verify" method="POST" class="space-y-6">
             <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
-            <p class="text-xs text-slate-400 text-center">Geschützt durch reCAPTCHA Enterprise.</p>
             <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all shadow-md">
                 Zugriff freischalten
             </button>
+            <p class="text-[10px] text-slate-400 text-center">Protected by reCAPTCHA v3</p>
         </form>
     </div>
     <script>
         document.getElementById('captcha-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            grecaptcha.enterprise.ready(function() {
-                grecaptcha.enterprise.execute('6LfXr_IsAAAAAMcDUJxt2EtQvVbsLjT8UCFthNUR', {action: 'LOGIN'}).then(function(token) {
+            grecaptcha.ready(function() {
+                grecaptcha.execute('6LfXr_IsAAAAAMcDUJxt2EtQvVbsLjT8UCFthNUR', {action: 'submit'}).then(function(token) {
                     document.getElementById('g-recaptcha-response').value = token;
                     document.getElementById('captcha-form').submit();
                 });
             });
         });
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 </body>
 </html>
