@@ -1,7 +1,6 @@
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
   
-  // Body auslesen
   const buffers = [];
   for await (const chunk of req) {
     buffers.push(chunk);
@@ -16,7 +15,6 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Klassischer siteverify Request
     const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
