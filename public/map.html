@@ -1,127 +1,174 @@
-<!DOCTYPE html> <html lang="de"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Gaußsche Ausgleichsgerade – Interaktive Karte</title> <!-- Tailwind CSS --> <script src="https://cdn.tailwindcss.com"></script> <!-- Leaflet CSS & JS --> <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/> <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script> <!-- FontAwesome Icons --> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"> <!-- Google Fonts --> <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"> <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } .mono { font-family: 'Fira Code', monospace; } .custom-scrollbar::-webkit-scrollbar { width: 6px; } .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; } .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; } .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; } input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #10b981; cursor: pointer; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.15); } input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #10b981; cursor: pointer; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.15); } #map { height: 100%; width: 100%; border-radius: 0.75rem; z-index: 0; } </style> </head> <body class="bg-slate-100 text-slate-800 min-h-screen lg:h-screen flex flex-col lg:overflow-hidden selection:bg-emerald-500 selection:text-white"> <header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col lg:flex-row items-center justify-between gap-4 z-10 shrink-0 shadow-sm"> <div class="flex items-center space-x-3.5"> <div class="bg-emerald-600 p-2.5 rounded-xl text-white shadow-md shadow-emerald-600/20"> <i class="fa-solid fa-map-location-dot text-xl"></i> </div> <div> <h1 class="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Der vermessene Wald</h1> <p class="text-xs text-emerald-600 font-bold tracking-wider uppercase">Mystery Cache • Bätterkinden</p> </div> </div> <div class="flex items-center flex-wrap justify-center gap-3"> <a id="sheet-link" href="#" target="_blank" class="bg-white hover:bg-slate-50 text-slate-600 text-xs px-3.5 py-2 rounded-lg border border-slate-200 font-semibold shadow-sm flex items-center gap-1.5 transition-colors"> <i class="fa-solid fa-table text-emerald-600"></i> Google Sheets öffnen </a> <span class="bg-slate-50 text-xs text-slate-600 px-3.5 py-2 rounded-lg border border-slate-200 font-semibold shadow-sm"> <i class="fa-solid fa-map-pin mr-1.5 text-emerald-600"></i>36 Caches geladen </span> </div> </header> <main class="flex-1 flex flex-col lg:flex-row lg:overflow-hidden w-full mx-auto relative"> <section class="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0 lg:h-full lg:overflow-y-auto custom-scrollbar shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10"> <div class="p-5 space-y-5"> <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm"> <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-ruler-combined mr-1"></i> Die geometrische Herausforderung</h2> <p class="text-sm text-slate-600 leading-relaxed"> Finde die perfekte Ausgleichsgerade! Verändere die Steigung (<code class="text-emerald-600 font-bold bg-emerald-50 px-1 rounded">m</code>) und den Achsenabschnitt (<code class="text-emerald-600 font-bold bg-emerald-50 px-1 rounded">c'</code>), bis die roten Abweichungslinien verschwinden. </p> </div> <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm"> <button onclick="toggleExplanation()" class="flex items-center justify-between w-full text-left font-bold text-slate-700 text-xs uppercase tracking-wider focus:outline-none"> <span class="flex items-center gap-2"> <i class="fa-solid fa-graduation-cap text-base text-slate-500"></i> Was ist Lineare Regression? </span> <i id="explanation-icon" class="fa-solid fa-chevron-down transition-transform duration-300"></i> </button> <div id="explanation-content" class="hidden mt-3 text-xs text-slate-600 space-y-2 border-t border-slate-200/60 pt-3 leading-relaxed"> <p>Die <strong>lineare Regression</strong> beschreibt Beziehungen zwischen zwei Variablen.</p> <p>Die Gleichung lautet: <strong>y = m · x + c'</strong></p> <p>Die Methode der kleinsten Quadrate (SSE) minimiert die Abweichungen.</p> </div> </div> <div class="bg-slate-900 rounded-xl p-4 text-center shadow-inner relative overflow-hidden"> <div class="absolute top-1.5 left-0 right-0 text-[10px] text-slate-400 font-bold uppercase tracking-wider">Aktuelle Gleichung (Minuten)</div> <div id="equation-display" class="text-emerald-400 font-mono text-lg font-bold mt-3"> y = 1.0000 · x - 20.000 </div> </div> <div class="space-y-2"> <div class="flex justify-between items-center"> <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Steigung (m)</label> <span id="m-val" class="font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-sm">1.0000</span> </div> <div class="flex items-center space-x-2"> <button onclick="adjustValue('m', -0.01)" class="bg-slate-100 w-8 h-8 rounded-lg">-</button> <input id="slider-m" type="range" min="0.5" max="1.5" step="0.0001" value="1.0" class="flex-1 h-1.5 accent-emerald-500"> <button onclick="adjustValue('m', 0.01)" class="bg-slate-100 w-8 h-8 rounded-lg">+</button> </div> </div> <div class="space-y-2"> <div class="flex justify-between items-center"> <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Achsenabschnitt (c')</label> <span id="c-val" class="font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-sm">-20.0000</span> </div> <div class="flex items-center space-x-2"> <button onclick="adjustValue('c', -0.1)" class="bg-slate-100 w-8 h-8 rounded-lg">-</button> <input id="slider-c" type="range" min="-32" max="-20" step="0.001" value="-20.0" class="flex-1 h-1.5 accent-emerald-500"> <button onclick="adjustValue('c', 0.1)" class="bg-slate-100 w-8 h-8 rounded-lg">+</button> </div> </div> <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-md space-y-4"> <div class="flex justify-between items-center border-b border-slate-100 pb-3"> <div> <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SSE</span> <div id="sse-display" class="text-lg font-bold font-mono text-rose-500 mt-0.5">...</div> </div> <div class="text-right"> <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Genauigkeit</span> <div id="accuracy-display" class="text-lg font-bold font-mono text-blue-600 mt-0.5">0.0%</div> </div> </div> <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden"> <div id="accuracy-bar" class="h-full bg-emerald-500" style="width: 0%"></div> </div> <div class="bg-slate-50 p-3 rounded-xl flex flex-col space-y-2"> <div class="flex justify-between"> <span class="text-[10px] text-slate-500 uppercase font-bold">Prognose x=32.841</span> <span id="predictor-display" class="text-xs font-mono font-bold">y = ???</span> </div> <div class="flex justify-between bg-white p-2 rounded border"> <span class="text-[10px] text-slate-500 uppercase font-bold">Koordinate</span> <span id="coord-display" class="text-sm font-bold font-mono">N 47° ??.???'</span> </div> </div> </div> <div id="success-card" class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 shadow-lg hidden"> <div class="text-emerald-500 text-4xl mb-3 text-center"><i class="fa-solid fa-lock-open"></i></div> <h3 class="text-sm font-bold text-emerald-600 uppercase text-center">Rätsel gelöst!</h3> <div class="mt-4 border-t pt-4 text-center space-y-3"> <div id="final-equation" class="text-xs font-mono text-emerald-700 bg-white py-1 px-2.5 rounded border">y = ...</div> <div id="final-coords" class="text-base font-bold text-slate-900 bg-white py-2 rounded-lg border-2 border-emerald-400">...</div> </div> </div> </div> </section> <section class="h-[500px] lg:h-auto lg:flex-1 relative p-4 bg-slate-100"> <div id="map"></div> </section> </main> <script> 
-const caches = [ { id: "GCA0F3Q", name: "Greifautomat", x: 32.206, y: 7.887, lat: 47.13145, lon: 7.53677 }, { id: "GC9Q512", name: "Bahnhof Bätterkinden", x: 32.097, y: 7.803, lat: 47.13005, lon: 7.53495 }, { id: "GC9WQJY", name: "Stern Reloaded", x: 32.289, y: 7.996, lat: 47.133267, lon: 7.53815 }, { id: "GC9PZ3Z", name: "Moos 14", x: 31.673, y: 7.862, lat: 47.131033, lon: 7.527883 }, { id: "GC9KQWF", name: "Moos 1 Stockacherweg", x: 32.224, y: 8.252, lat: 47.137533, lon: 7.537067 }, { id: "GC9KQXH", name: "Moos 2 Biotop", x: 32.012, y: 8.399, lat: 47.139983, lon: 7.533533 }, { id: "GC9PYD9", name: "Moos 13 Baum", x: 31.279, y: 7.571, lat: 47.126183, lon: 7.521317 }, { id: "GC9KQY1", name: "Moos 3 Fischzucht", x: 31.928, y: 8.548, lat: 47.142467, lon: 7.532133 }, { id: "GC9PYCV", name: "Moos 12 Modelflugplatz", x: 31.082, y: 7.419, lat: 47.12365, lon: 7.518033 }, { id: "GC9KQY7", name: "Moos 4 Röhre", x: 31.856, y: 8.687, lat: 47.144783, lon: 7.530933 }, { id: "GC9N4V5", name: "Moos 6 Baumstrunk", x: 31.237, y: 8.468, lat: 47.141133, lon: 7.520617 }, { id: "GC9N4VC", name: "Moos 7 Kugel", x: 31.104, y: 8.368, lat: 47.139467, lon: 7.5184 }, { id: "GC9EZJG", name: "Dino 6 Pteranodon", x: 31.995, y: 9.216, lat: 47.1536, lon: 7.53325 }, { id: "GC9GN2G", name: "Stein Nr. 101", x: 32.125, y: 9.241, lat: 47.154017, lon: 7.535417 }, { id: "GC9GMWG", name: "Angel-Cache 8", x: 32.270, y: 9.295, lat: 47.154917, lon: 7.537833 }, { id: "GC9GV8W", name: "(K)ein Angelcache", x: 32.051, y: 9.331, lat: 47.155517, lon: 7.534183 }, { id: "GCBNR60", name: "Vermessener Bach", x: 32.515, y: 9.353, lat: 47.155883, lon: 7.541917 }, { id: "GC9GK70", name: "Angel-Cache 7", x: 32.337, y: 9.374, lat: 47.156233, lon: 7.53895 }, { id: "GC9EY01", name: "Dino 1 Pachy...", x: 31.906, y: 9.373, lat: 47.156217, lon: 7.531767 }, { id: "GC9GWJA", name: "Tuff", x: 32.208, y: 9.404, lat: 47.156733, lon: 7.5368 }, { id: "GC9EZGM", name: "Dino 2 Velociraptor", x: 32.073, y: 9.417, lat: 47.15695, lon: 7.53455 }, { id: "GC9EZJ5", name: "Dino 5 Brachio...", x: 32.407, y: 9.447, lat: 47.15745, lon: 7.540117 }, { id: "GCBQ0KX", name: "Fliegender Container", x: 31.850, y: 9.452, lat: 47.157533, lon: 7.530833 }, { id: "GCBNR2V", name: "Wanderweg Limpach...", x: 32.548, y: 9.463, lat: 47.157715, lon: 7.542467 }, { id: "GC9F0B3", name: "Dino 3 T-Rex", x: 32.209, y: 9.497, lat: 47.158283, lon: 7.536817 }, { id: "GC9GKXV", name: "Angel-Cache 1", x: 31.940, y: 9.524, lat: 47.158733, lon: 7.532333 }, { id: "GC9GK5Z", name: "Angel-Cache 2", x: 32.085, y: 9.550, lat: 47.159167, lon: 7.53475 }, { id: "GCBNERB", name: "Vor dem Limpach...", x: 32.633, y: 9.548, lat: 47.159133, lon: 7.543883 }, { id: "GC9EZHN", name: "Dino 4 Stegosaurus", x: 32.277, y: 9.574, lat: 47.159567, lon: 7.53795 }, { id: "GC9GK6K", name: "Angel-Cache 6", x: 32.483, y: 9.570, lat: 47.1595, lon: 7.541383 }, { id: "GCBN29P", name: "Limpachspitz", x: 32.743, y: 9.599, lat: 47.159983, lon: 7.545717 }, { id: "GCBN4E7", name: "Eule", x: 32.629, y: 9.640, lat: 47.160667, lon: 7.543817 }, { id: "GC9G4ZQ", name: "Angel-Cache 3", x: 32.268, y: 9.674, lat: 47.161233, lon: 7.5378 }, { id: "GC9GK5F", name: "Angel-Cache 5", x: 32.522, y: 9.688, lat: 47.161467, lon: 7.542033 }, { id: "GC9GK49", name: "Angel-Cache 4", x: 32.393, y: 9.708, lat: 47.1618, lon: 7.539883 }, { id: "GC9HV7P", name: "Altisberg", x: 32.910, y: 9.715, lat: 47.161917, lon: 7.5485 } ];
+<!DOCTYPE html> <html lang="de"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>Gaußsche Ausgleichsgerade – Interaktive Karte</title> <script src="https://cdn.tailwindcss.com"></script> <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" /> <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"> <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Plus+Jakarta+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"> <script src="https://www.google.com/recaptcha/api.js" async defer></script> <style> body { font-family: 'Plus Jakarta Sans', sans-serif; } .mono { font-family: 'Fira Code', monospace; } #map { height: 100%; width: 100%; border-radius: 0.75rem; z-index: 0; } </style> </head> <body class="bg-slate-100 text-slate-800 min-h-screen lg:h-screen flex flex-col lg:overflow-hidden selection:bg-emerald-500 selection:text-white">
 
-let secureData = {};
-async function loadData() {
+<!-- Captcha Overlay -->
+<div id="captcha-overlay" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[2000] flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-200 text-center">
+        <div class="bg-emerald-600 w-16 h-16 rounded-full flex items-center justify-center text-white mx-auto mb-4 shadow-lg">
+            <i class="fa-solid fa-shield-halved text-2xl"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-900 mb-2">Verifizierung</h2>
+        <p class="text-slate-500 mb-6">Bitte bestätige kurz deine Identität, um die Karte freizuschalten.</p>
+        <form id="captcha-form" action="/api/verify" method="POST" class="space-y-6">
+            <div class="flex justify-center">
+                <div class="g-recaptcha" data-sitekey="6LcgWvQsAAAAALl7vTWJte6YmTq2x72Q31_zPecB"></div>
+            </div>
+            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all shadow-md">
+                Karte freischalten
+            </button>
+        </form>
+    </div>
+</div>
+
+<header class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col lg:flex-row items-center justify-between gap-4 z-10 shrink-0 shadow-sm">
+    <div class="flex items-center space-x-3.5">
+        <div class="bg-emerald-600 p-2.5 rounded-xl text-white shadow-md shadow-emerald-600/20">
+            <i class="fa-solid fa-map-location-dot text-xl"></i>
+        </div>
+        <div>
+            <h1 class="text-lg font-bold tracking-tight text-slate-900 md:text-xl">Der vermessene Wald</h1>
+            <p class="text-xs text-emerald-600 font-bold tracking-wider uppercase">Mystery Cache • Bätterkinden</p>
+        </div>
+    </div>
+    <div class="flex items-center flex-wrap justify-center gap-3">
+        <a id="sheet-link" href="#" target="_blank" class="bg-white hover:bg-slate-50 text-slate-600 text-xs px-3.5 py-2 rounded-lg border border-slate-200 font-semibold shadow-sm flex items-center gap-1.5 transition-colors">
+            <i class="fa-solid fa-table text-emerald-600"></i> Google Sheets öffnen
+        </a>
+        <span class="bg-slate-50 text-xs text-slate-600 px-3.5 py-2 rounded-lg border border-slate-200 font-semibold shadow-sm">
+            <i class="fa-solid fa-map-pin mr-1.5 text-emerald-600"></i>36 Caches geladen
+        </span>
+    </div>
+</header>
+
+<main class="flex-1 flex flex-col lg:flex-row lg:overflow-hidden w-full mx-auto relative">
+    <section class="w-full lg:w-[420px] bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col shrink-0 lg:h-full lg:overflow-y-auto custom-scrollbar shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-10">
+        <div class="p-5 space-y-5">
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2"><i class="fa-solid fa-ruler-combined mr-1"></i> Die geometrische Herausforderung</h2>
+                <p class="text-sm text-slate-600 leading-relaxed"> Finde die perfekte Ausgleichsgerade! Verändere die Steigung (m) und den Achsenabschnitt (c'), bis die Residuen verschwinden. </p>
+            </div>
+            <div class="bg-slate-900 rounded-xl p-4 text-center shadow-inner relative overflow-hidden">
+                <div id="equation-display" class="text-emerald-400 font-mono text-lg font-bold mt-3">y = 1.0000 · x - 20.000</div>
+            </div>
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center"><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Steigung (m)</label><span id="m-val" class="font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-sm">1.0000</span></div>
+                    <div class="flex items-center space-x-2"><button onclick="adjustValue('m', -0.01)" class="bg-slate-100 w-8 h-8 rounded-lg">-</button><input id="slider-m" type="range" min="0.5" max="1.5" step="0.0001" value="1.0" class="flex-1 h-1.5 accent-emerald-500"><button onclick="adjustValue('m', 0.01)" class="bg-slate-100 w-8 h-8 rounded-lg">+</button></div>
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center"><label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Achsenabschnitt (c')</label><span id="c-val" class="font-mono text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-sm">-20.0000</span></div>
+                    <div class="flex items-center space-x-2"><button onclick="adjustValue('c', -0.1)" class="bg-slate-100 w-8 h-8 rounded-lg">-</button><input id="slider-c" type="range" min="-32" max="-20" step="0.001" value="-20.0" class="flex-1 h-1.5 accent-emerald-500"><button onclick="adjustValue('c', 0.1)" class="bg-slate-100 w-8 h-8 rounded-lg">+</button></div>
+                </div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-md space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <div><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SSE</span><div id="sse-display" class="text-lg font-bold font-mono text-rose-500 mt-0.5">...</div></div>
+                    <div class="text-right"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Genauigkeit</span><div id="accuracy-display" class="text-lg font-bold font-mono text-blue-600 mt-0.5">0.0%</div></div>
+                </div>
+                <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden"><div id="accuracy-bar" class="h-full bg-emerald-500" style="width: 0%"></div></div>
+                <div class="bg-slate-50 p-3 rounded-xl flex flex-col space-y-2">
+                    <div class="flex justify-between items-center"><span class="text-[10px] text-slate-500 uppercase font-bold">Prognose x=32.841</span><span id="predictor-display" class="text-xs font-mono font-bold">y = ???</span></div>
+                    <div class="flex justify-between items-center bg-white p-2 rounded border"><span class="text-[10px] text-slate-500 uppercase font-bold">Koordinate</span><span id="coord-display" class="text-sm font-bold font-mono">N 47° ??.???'</span></div>
+                </div>
+            </div>
+            <div id="success-card" class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-5 shadow-lg hidden">
+                <div class="text-emerald-500 text-4xl mb-3 text-center"><i class="fa-solid fa-lock-open"></i></div>
+                <h3 class="text-sm font-bold text-emerald-600 uppercase text-center">Rätsel gelöst!</h3>
+                <div class="mt-4 border-t pt-4 text-center space-y-3">
+                    <div id="final-equation" class="text-xs font-mono text-emerald-700 bg-white py-1 px-2.5 rounded border">y = ...</div>
+                    <div id="final-coords" class="text-base font-bold text-slate-900 bg-white py-2 rounded-lg border-2 border-emerald-400">...</div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="h-[500px] lg:h-auto lg:flex-1 relative p-4 bg-slate-100"><div id="map"></div></section>
+</main>
+
+<script>
+const caches = [{id:"GCA0F3Q",x:32.206,y:7.887,lat:47.13145,lon:7.53677},{id:"GC9Q512",x:32.097,y:7.803,lat:47.13005,lon:7.53495},{id:"GC9WQJY",x:32.289,y:7.996,lat:47.133267,lon:7.53815},{id:"GC9PZ3Z",x:31.673,y:7.862,lat:47.131033,lon:7.527883},{id:"GC9KQWF",x:32.224,y:8.252,lat:47.137533,lon:7.537067},{id:"GC9KQXH",x:32.012,y:8.399,lat:47.139983,lon:7.533533},{id:"GC9PYD9",x:31.279,y:7.571,lat:47.126183,lon:7.521317},{id:"GC9KQY1",x:31.928,y:8.548,lat:47.142467,lon:7.532133},{id:"GC9PYCV",x:31.082,y:7.419,lat:47.12365,lon:7.518033},{id:"GC9KQY7",x:31.856,y:8.687,lat:47.144783,lon:7.530933},{id:"GC9N4V5",x:31.237,y:8.468,lat:47.141133,lon:7.520617},{id:"GC9N4VC",x:31.104,y:8.368,lat:47.139467,lon:7.5184},{id:"GC9EZJG",x:31.995,y:9.216,lat:47.1536,lon:7.53325},{id:"GC9GN2G",x:32.125,y:9.241,lat:47.154017,lon:7.535417},{id:"GC9GMWG",x:32.270,y:9.295,lat:47.154917,lon:7.537833},{id:"GC9GV8W",x:32.051,y:9.331,lat:47.155517,lon:7.534183},{id:"GCBNR60",x:32.515,y:9.353,lat:47.155883,lon:7.541917},{id:"GC9GK70",x:32.337,y:9.374,lat:47.156233,lon:7.53895},{id:"GC9EY01",x:31.906,y:9.373,lat:47.156217,lon:7.531767},{id:"GC9GWJA",x:32.208,y:9.404,lat:47.156733,lon:7.5368},{id:"GC9EZGM",x:32.073,y:9.417,lat:47.15695,lon:7.53455},{id:"GC9EZJ5",x:32.407,y:9.447,lat:47.15745,lon:7.540117},{id:"GCBQ0KX",x:31.850,y:9.452,lat:47.157533,lon:7.530833},{id:"GCBNR2V",x:32.548,y:9.463,lat:47.157715,lon:7.542467},{id:"GC9F0B3",x:32.209,y:9.497,lat:47.158283,lon:7.536817},{id:"GC9GKXV",x:31.940,y:9.524,lat:47.158733,lon:7.532333},{id:"GC9GK5Z",x:32.085,y:9.550,lat:47.159167,lon:7.53475},{id:"GCBNERB",x:32.633,y:9.548,lat:47.159133,lon:7.543883},{id:"GC9EZHN",x:32.277,y:9.574,lat:47.159567,lon:7.53795},{id:"GC9GK6K",x:32.483,y:9.570,lat:47.1595,lon:7.541383},{id:"GCBN29P",x:32.743,y:9.599,lat:47.159983,lon:7.545717},{id:"GCBN4E7",x:32.629,y:9.640,lat:47.160667,lon:7.543817},{id:"GC9G4ZQ",x:32.268,y:9.674,lat:47.161233,lon:7.5378},{id:"GC9GK5F",x:32.522,y:9.688,lat:47.161467,lon:7.542033},{id:"GC9GK49",x:32.393,y:9.708,lat:47.1618,lon:7.539883},{id:"GC9HV7P",x:32.910,y:9.715,lat:47.161917,lon:7.5485}];
+
+let secureData = {}, map, markerGroup, lineGroup, unlocked = false;
+let userSlope = 0.8, userIntercept = -17.0, minSSE = 0, trueSlope = 0, trueIntercept = 0;
+
+async function checkAuth() {
     const res = await fetch('/api/data');
-    if (res.status === 401) window.location.href = '/';
-    secureData = await res.json();
-    document.getElementById('sheet-link').href = secureData.sheetLink;
-    initMap();
+    if (res.ok) {
+        secureData = await res.json();
+        document.getElementById('captcha-overlay').classList.add('hidden');
+        document.getElementById('sheet-link').href = secureData.sheetLink;
+        initMap();
+    }
 }
 
-let userSlope = 0.8; let userIntercept = -17.0; let minSSE = 0; let trueSlope = 0; let trueIntercept = 0;
-let map, markerGroup, lineGroup, unlocked = false;
-
-function minutesToLat(y_min) { return 47.0 + (y_min / 60.0); }
-function minutesToLon(x_min) { return 7.0 + (x_min / 60.0); }
+function minutesToLat(y) { return 47.0 + (y / 60.0); }
+function minutesToLon(x) { return 7.0 + (x / 60.0); }
 
 function initMap() {
     map = L.map('map').setView([47.142, 7.533], 13);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
     markerGroup = L.layerGroup().addTo(map);
     lineGroup = L.layerGroup().addTo(map);
-    
-    const cacheIcon = L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div class="w-4 h-4 rounded-full bg-emerald-500 border-2 border-white"></div>`,
-        iconSize: [16, 16], iconAnchor: [8, 8]
-    });
-
-    caches.forEach(c => {
-        L.marker([c.lat, c.lon], { icon: cacheIcon }).addTo(markerGroup);
-    });
-    calculateBaselineRegression();
+    const icon = L.divIcon({className:'bg-emerald-500 w-3 h-3 rounded-full border border-white'});
+    caches.forEach(c => L.marker([c.lat, c.lon], {icon}).addTo(markerGroup));
+    calculateBaseline();
     updateFitting();
 }
 
-function calculateBaselineRegression() {
-    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0; const N = caches.length;
-    caches.forEach(c => { sumX += c.x; sumY += c.y; sumXY += c.x * c.y; sumXX += c.x * c.x; });
-    trueSlope = (N * sumXY - sumX * sumY) / (N * sumXX - sumX * sumX);
-    trueIntercept = (sumY - trueSlope * sumX) / N;
-    caches.forEach(c => { minSSE += Math.pow(c.y - (trueSlope * c.x + trueIntercept), 2); });
+function calculateBaseline() {
+    let sX=0, sY=0, sXY=0, sXX=0, N=caches.length;
+    caches.forEach(c => { sX+=c.x; sY+=c.y; sXY+=c.x*c.y; sXX+=c.x*c.x; });
+    trueSlope = (N*sXY - sX*sY) / (N*sXX - sX*sX);
+    trueIntercept = (sY - trueSlope*sX) / N;
+    caches.forEach(c => minSSE += Math.pow(c.y - (trueSlope*c.x + trueIntercept), 2));
 }
 
 function updateFitting() {
     let userSSE = 0;
-    caches.forEach(c => {
-        const predY = userSlope * c.x + userIntercept;
-        userSSE += Math.pow(c.y - predY, 2);
-    });
-    
-    const accuracy = Math.max(0, 100 * (1 - (userSSE - minSSE) / (minSSE * 1.5)));
+    caches.forEach(c => userSSE += Math.pow(c.y - (userSlope*c.x + userIntercept), 2));
+    const acc = Math.max(0, 100 * (1 - (userSSE - minSSE) / (minSSE * 1.5)));
     document.getElementById('sse-display').innerText = userSSE.toFixed(4);
-    document.getElementById('accuracy-display').innerText = accuracy.toFixed(1) + '%';
-    document.getElementById('accuracy-bar').style.width = accuracy + '%';
-    document.getElementById('equation-display').innerText = `y = ${userSlope.toFixed(4)} · x ${userIntercept >= 0 ? '+' : '-'} ${Math.abs(userIntercept).toFixed(4)}`;
-
-    const targetX = 32.841;
-    const predY = userSlope * targetX + userIntercept;
+    document.getElementById('accuracy-display').innerText = acc.toFixed(1) + '%';
+    document.getElementById('accuracy-bar').style.width = acc + '%';
+    document.getElementById('equation-display').innerText = `y = ${userSlope.toFixed(4)} · x ${userIntercept>=0?'+':'-'} ${Math.abs(userIntercept).toFixed(4)}`;
+    
+    const predY = userSlope * 32.841 + userIntercept;
     document.getElementById('predictor-display').innerText = `y = ${predY.toFixed(3)}`;
-    const coordStr = predY < 10 ? `0${predY.toFixed(3)}` : predY.toFixed(3);
-    document.getElementById('coord-display').innerText = `N 47° ${coordStr}'`;
+    document.getElementById('coord-display').innerText = `N 47° ${predY < 10 ? '0' : ''}${predY.toFixed(3)}'`;
 
-    drawLinesOnMap();
-
-    if (accuracy >= 99.8 && !unlocked) {
-        unlockFinal();
-    }
-}
-
-function drawLinesOnMap() {
     lineGroup.clearLayers();
-    const xMin = 30.5; const xMax = 33.5;
-    L.polyline([[minutesToLat(userSlope * xMin + userIntercept), minutesToLon(xMin)], [minutesToLat(userSlope * xMax + userIntercept), minutesToLon(xMax)]], 
-        { color: '#ef4444', weight: 4 }).addTo(lineGroup);
-
+    const xMin=30.5, xMax=33.5;
+    L.polyline([[minutesToLat(userSlope*xMin+userIntercept), minutesToLon(xMin)], [minutesToLat(userSlope*xMax+userIntercept), minutesToLon(xMax)]], {color:'#ef4444', weight:3}).addTo(lineGroup);
     caches.forEach(c => {
-        const predictedY = userSlope * c.x + userIntercept;
-        const error = Math.abs(c.y - predictedY);
-        const hue = Math.max(0, Math.min(120, 120 - (error * 150)));
-        L.polyline([[c.lat, c.lon], [minutesToLat(predictedY), c.lon]], 
-            { color: `hsl(${hue}, 85%, 50%)`, weight: 2, dashArray: '4, 4' }).addTo(lineGroup);
+        const pY = userSlope*c.x+userIntercept;
+        const err = Math.abs(c.y-pY);
+        const hue = Math.max(0, Math.min(120, 120-(err*150)));
+        L.polyline([[c.lat, c.lon], [minutesToLat(pY), c.lon]], {color:`hsl(${hue},80%,50%)`, weight:1.5, dashArray:'4,4'}).addTo(lineGroup);
     });
+
+    if (acc >= 99.8 && !unlocked) unlock();
 }
 
-function unlockFinal() {
+function unlock() {
     unlocked = true;
     document.getElementById('success-card').classList.remove('hidden');
-    const finalX = 32.841;
-    const finalLat = minutesToLat(trueSlope * finalX + trueIntercept);
-    const finalLon = minutesToLon(finalX);
-    const finalIcon = L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div class="flex items-center justify-center w-8 h-8 rounded-full bg-rose-500 border-2 border-white shadow-lg animate-bounce"><i class="fa-solid fa-gift text-white"></i></div>`,
-        iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32]
-    });
-    const finalMarker = L.marker([finalLat, finalLon], { icon: finalIcon }).addTo(map)
-     .bindPopup(`<strong>Final</strong><br>${secureData.finalLat}<br>${secureData.finalLon}`);
-
-    map.flyTo([finalLat - 0.005, finalLon], 14, { animate: true, duration: 1.5 });
-    setTimeout(() => finalMarker.openPopup(), 1600);
-
+    const fX=32.841, fY=trueSlope*fX+trueIntercept;
+    const fLat=minutesToLat(fY), fLon=minutesToLon(fX);
+    L.marker([fLat, fLon], {icon: L.divIcon({className:'bg-rose-500 w-6 h-6 rounded-full border-2 border-white animate-bounce'})}).addTo(map)
+     .bindPopup(`<strong>Final</strong><br>${secureData.finalLat}<br>${secureData.finalLon}`).openPopup();
+    map.flyTo([fLat, fLon], 14);
     document.getElementById('final-equation').innerText = secureData.successEquation;
-    document.getElementById('final-coords').innerHTML = `${secureData.finalLat} / ${secureData.finalLon}`;
+    document.getElementById('final-coords').innerText = `${secureData.finalLat} / ${secureData.finalLon}`;
 }
 
 function adjustValue(p, v) {
     if (unlocked) return;
-    if (p === 'm') userSlope += v; else userIntercept += v;
+    if (p==='m') userSlope+=v; else userIntercept+=v;
     document.getElementById('m-val').innerText = userSlope.toFixed(4);
     document.getElementById('c-val').innerText = userIntercept.toFixed(4);
     updateFitting();
 }
 
-function toggleExplanation() {
-    const content = document.getElementById('explanation-content');
-    const icon = document.getElementById('explanation-icon');
-    content.classList.toggle('hidden');
-    icon.classList.toggle('rotate-180');
-}
+document.getElementById('slider-m').oninput = e => { userSlope = parseFloat(e.target.value); updateFitting(); };
+document.getElementById('slider-c').oninput = e => { userIntercept = parseFloat(e.target.value); updateFitting(); };
 
-document.getElementById('slider-m').addEventListener('input', e => { userSlope = parseFloat(e.target.value); updateFitting(); });
-document.getElementById('slider-c').addEventListener('input', e => { userIntercept = parseFloat(e.target.value); updateFitting(); });
-
-loadData();
+checkAuth();
 </script> </body> </html>

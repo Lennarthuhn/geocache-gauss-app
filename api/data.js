@@ -4,7 +4,6 @@ module.exports = async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  // Daten aus Umgebungsvariablen (geschützt)
   res.json({
     targetX: 32.841,
     successEquation: process.env.SUCCESS_EQUATION || "y = 1.0739 · x - 25.4700",
