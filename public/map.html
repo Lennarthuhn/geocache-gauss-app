@@ -57,17 +57,36 @@
             </div>
             <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden"><div id="accuracy-bar" class="h-full bg-emerald-500" style="width: 0%"></div></div>
             <div class="bg-slate-50 p-3 rounded-xl space-y-2">
-                <div class="flex justify-between text-xs font-mono"><span>Prognose x=32.841</span><span id="predictor-display">Nord = ???</span></div>
+                <div class="flex justify-between text-xs font-mono"><span>Prognose Ost=32.841</span><span id="predictor-display">Nord = ???</span></div>
                 <div class="flex justify-between items-center bg-white p-2 rounded border font-mono text-sm"><span class="text-[10px] text-slate-500">KOORD</span><span id="coord-display">N 47° ??.???'</span></div>
             </div>
         </div>
         <div id="success-card" class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-5 shadow-lg hidden text-center">
             <div class="text-emerald-500 text-3xl mb-2"><i class="fa-solid fa-lock-open"></i></div>
-            <h3 class="text-sm font-bold text-emerald-600 uppercase mb-3">Rätsel gelöst!</h3>
-            <p class="text-[10px] text-slate-500 uppercase font-bold mb-2">Berechne deine Ziel-Nordkoordinate:</p>
-            <div id="final-equation" class="text-sm font-mono text-emerald-700 bg-white py-2 mb-3 rounded border font-bold">...</div>
-            <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Ost-Koordinate (x):</p>
-            <div id="final-coords" class="text-lg font-bold text-slate-900 bg-white py-2 rounded-lg border-2 border-emerald-400">...</div>
+            <h3 class="text-sm font-bold text-emerald-600 uppercase mb-4">Rätsel gelöst!</h3>
+            
+            <div class="space-y-4 text-left">
+                <div class="bg-white p-3 rounded-lg border border-emerald-200 shadow-sm">
+                    <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">1. Formel anwenden</p>
+                    <div id="final-equation" class="text-sm font-mono text-emerald-700 font-bold">...</div>
+                    <p class="text-[9px] text-slate-400 mt-1 italic">Tipp: Setze den Wert für "Ost" (x) ein, um die Nord-Minuten zu erhalten.</p>
+                </div>
+
+                <div class="bg-white p-3 rounded-lg border border-emerald-200 shadow-sm">
+                    <p class="text-[10px] text-slate-400 uppercase font-bold mb-1">2. Werte einsetzen</p>
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-xs text-slate-500">Ost (x):</span>
+                        <span id="final-coords" class="text-base font-bold text-slate-900 font-mono">...</span>
+                    </div>
+                </div>
+
+                <div class="pt-2 border-t border-emerald-100">
+                    <p class="text-[10px] text-slate-400 uppercase font-bold mb-2 text-center">Finaler Cache-Standort</p>
+                    <div class="text-center font-mono text-sm text-slate-700 bg-emerald-100/50 py-2 rounded">
+                        N 47° [Ergebnis]' <br> E 007° [Ost]'
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
     <section class="h-[500px] lg:h-auto lg:flex-1 relative p-4 bg-slate-100"><div id="map"></div></section>
@@ -114,7 +133,10 @@ async function unlockFinalData() {
         unlocked = true;
         document.getElementById('success-card').classList.remove('hidden');
         document.getElementById('final-equation').innerText = finalData.successEquation;
-        document.getElementById('final-coords').innerText = finalData.finalLon;
+        
+        // Extrahiere nur den reinen Zahlenwert aus der E 007° 32.841' ENV für die Rechnung
+        const rawLon = finalData.finalLon.match(/(\d+\.\d+)/)?.[0] || finalData.finalLon;
+        document.getElementById('final-coords').innerText = rawLon;
         
         const fX=32.841, fY=trueSlope*fX+trueIntercept;
         L.marker([minToLat(fY), minToLon(fX)], {icon: L.divIcon({className:'bg-rose-500 w-6 h-6 rounded-full border-2 border-white animate-pulse'})}).addTo(map);
@@ -130,10 +152,12 @@ function update() {
     document.getElementById('accuracy-display').innerText = acc.toFixed(1) + '%';
     document.getElementById('accuracy-bar').style.width = acc + '%';
     document.getElementById('equation-display').innerText = `Nord = ${userSlope.toFixed(4)} · Ost ${userIntercept>=0?'+':'-'} ${Math.abs(userIntercept).toFixed(4)}`;
-    const pY = userSlope * 32.841 + userIntercept;
+    
+    const targetX = 32.841;
+    const pY = userSlope * targetX + userIntercept;
     document.getElementById('predictor-display').innerText = `Nord = ${pY.toFixed(3)}`;
     document.getElementById('coord-display').innerText = `N 47° ${pY < 10 ? '0' : ''}${pY.toFixed(3)}'`;
-    
+
     lineGroup.clearLayers();
     L.polyline([[minToLat(userSlope*30.5+userIntercept), minToLon(30.5)], [minToLat(userSlope*33.5+userIntercept), minToLon(33.5)]], {color:'#ef4444', weight:3}).addTo(lineGroup);
     caches.forEach(c => {
